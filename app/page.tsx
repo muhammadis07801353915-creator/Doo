@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { UploadCloud, Film, Copy, CheckCircle2, Play, Loader2, LogIn, LogOut } from 'lucide-react';
 import { auth, db, storage } from '../firebase';
-import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { signInAnonymously, onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { collection, addDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 export default function Home() {
@@ -14,6 +14,7 @@ export default function Home() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [passcode, setPasscode] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,12 +43,16 @@ export default function Home() {
   }, [isAuthReady]);
 
   const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("هەڵەیەک ڕوویدا لە کاتی چوونەژوورەوە");
+    if (passcode === '500') {
+      try {
+        await signInAnonymously(auth);
+        setPasscode('');
+      } catch (error) {
+        console.error("Login error:", error);
+        alert("هەڵەیەک ڕوویدا لە کاتی چوونەژوورەوە");
+      }
+    } else {
+      alert("کۆدی نهێنی هەڵەیە!");
     }
   };
 
@@ -127,18 +132,11 @@ export default function Home() {
     <main className="min-h-screen p-8 max-w-5xl mx-auto">
       <header className="mb-12 text-center mt-10 relative">
         <div className="absolute top-0 left-0">
-          {isAuthReady && (
-            user ? (
-              <button onClick={handleLogout} className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition-colors">
-                <LogOut className="w-4 h-4" />
-                چوونەدەرەوە
-              </button>
-            ) : (
-              <button onClick={handleLogin} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition-colors">
-                <LogIn className="w-4 h-4" />
-                چوونەژوورەوە
-              </button>
-            )
+          {isAuthReady && user && (
+            <button onClick={handleLogout} className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition-colors">
+              <LogOut className="w-4 h-4" />
+              چوونەدەرەوە
+            </button>
           )}
         </div>
         
@@ -156,11 +154,22 @@ export default function Home() {
         {!user ? (
           <div className="flex flex-col items-center justify-center gap-4">
             <UploadCloud className="w-16 h-16 text-gray-600" />
-            <p className="text-xl font-medium text-gray-400">بۆ ئەپلۆدکردنی فیلم، سەرەتا بچۆ ژوورەوە</p>
-            <button onClick={handleLogin} className="mt-2 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-medium transition-colors">
-              <LogIn className="w-5 h-5" />
-              چوونەژوورەوە بە هەژماری گووگڵ
-            </button>
+            <p className="text-xl font-medium text-gray-400">بۆ ئەپلۆدکردنی فیلم، کۆدی نهێنی بنووسە</p>
+            <div className="flex flex-col sm:flex-row gap-3 mt-2 w-full max-w-sm">
+              <input
+                type="password"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                placeholder="کۆدی نهێنی..."
+                className="flex-1 px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-blue-500 text-center text-lg tracking-widest"
+                dir="ltr"
+              />
+              <button onClick={handleLogin} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-medium transition-colors">
+                <LogIn className="w-5 h-5" />
+                چوونەژوورەوە
+              </button>
+            </div>
           </div>
         ) : (
           <>
