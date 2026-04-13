@@ -51,7 +51,11 @@ export default function Home() {
       }, 
       (error) => {
         console.error('Upload failed:', error);
-        alert('هەڵەیەک ڕوویدا لە کاتی ئەپلۆدکردن.');
+        if (error.code === 'storage/unauthorized') {
+          alert('کێشە لە ڕێگەپێدانی ئەپلۆدکردن هەیە. تکایە دڵنیابە کە Firebase Storage ڕێگە بە ئەپلۆدکردن دەدات.');
+        } else {
+          alert(`هەڵەیەک ڕوویدا لە کاتی ئەپلۆدکردن: ${error.message}`);
+        }
         setIsUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }, 
