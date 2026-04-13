@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { UploadCloud, Film, Copy, CheckCircle2, Play, Loader2, LogIn, LogOut } from 'lucide-react';
-import { auth, db, storage } from '../firebase';
-import { signInAnonymously, onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { UploadCloud, Film, Copy, CheckCircle2, Play, Loader2 } from 'lucide-react';
+import { db, storage } from '../firebase';
 import { collection, addDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -12,22 +11,9 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const [passcode, setPasscode] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setIsAuthReady(true);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthReady) return;
-
     const q = query(collection(db, 'videos'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const videoData = snapshot.docs.map(doc => ({
@@ -40,38 +26,11 @@ export default function Home() {
     });
 
     return () => unsubscribe();
-  }, [isAuthReady]);
-
-  const handleLogin = async () => {
-    if (passcode === '500') {
-      try {
-        await signInAnonymously(auth);
-        setPasscode('');
-      } catch (error) {
-        console.error("Login error:", error);
-        alert("هەڵەیەک ڕوویدا لە کاتی چوونەژوورەوە");
-      }
-    } else {
-      alert("کۆدی نهێنی هەڵەیە!");
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!user) {
-      alert('تکایە سەرەتا بچۆ ژوورەوە بۆ ئەوەی بتوانیت ڤیدیۆ ئەپلۆد بکەیت');
-      return;
-    }
 
     if (!file.type.startsWith('video/')) {
       alert('تکایە تەنها فایلی ڤیدیۆ هەڵبژێرە');
@@ -105,7 +64,7 @@ export default function Home() {
             url: downloadURL,
             size: file.size,
             createdAt: Date.now(),
-            uid: user.uid
+            uid: 'anonymous'
           });
           
         } catch (error) {
@@ -130,16 +89,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen p-8 max-w-5xl mx-auto">
-      <header className="mb-12 text-center mt-10 relative">
-        <div className="absolute top-0 left-0">
-          {isAuthReady && user && (
-            <button onClick={handleLogout} className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition-colors">
-              <LogOut className="w-4 h-4" />
-              چوونەدەرەوە
-            </button>
-          )}
-        </div>
-        
+      <header className="mb-12 text-center mt-10">
         <h1 className="text-4xl font-bold mb-4 flex items-center justify-center gap-3">
           <Film className="w-10 h-10 text-blue-500" />
           سەکۆی فیلمەکانم
@@ -151,63 +101,39 @@ export default function Home() {
 
       {/* Upload Section */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-10 text-center mb-12 shadow-xl">
-        {!user ? (
-          <div className="flex flex-col items-center justify-center gap-4">
-            <UploadCloud className="w-16 h-16 text-gray-600" />
-            <p className="text-xl font-medium text-gray-400">بۆ ئەپلۆدکردنی فیلم، کۆدی نهێنی بنووسە</p>
-            <div className="flex flex-col sm:flex-row gap-3 mt-2 w-full max-w-sm">
-              <input
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                placeholder="کۆدی نهێنی..."
-                className="flex-1 px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-blue-500 text-center text-lg tracking-widest"
-                dir="ltr"
-              />
-              <button onClick={handleLogin} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-medium transition-colors">
-                <LogIn className="w-5 h-5" />
-                چوونەژوورەوە
-              </button>
+        <input
+          type="file"
+          accept="video/*"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          disabled={isUploading}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="flex flex-col items-center justify-center w-full gap-4 cursor-pointer hover:opacity-80 transition-opacity"
+        >
+          {isUploading ? (
+            <div className="flex flex-col items-center gap-3 w-full max-w-md">
+              <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
+              <div className="w-full bg-gray-800 rounded-full h-2.5 mt-4">
+                <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+              </div>
+              <span className="text-blue-400 font-medium">{Math.round(uploadProgress)}%</span>
             </div>
-          </div>
-        ) : (
-          <>
-            <input
-              type="file"
-              accept="video/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              disabled={isUploading}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="flex flex-col items-center justify-center w-full gap-4 cursor-pointer hover:opacity-80 transition-opacity"
-            >
-              {isUploading ? (
-                <div className="flex flex-col items-center gap-3 w-full max-w-md">
-                  <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
-                  <div className="w-full bg-gray-800 rounded-full h-2.5 mt-4">
-                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                  </div>
-                  <span className="text-blue-400 font-medium">{Math.round(uploadProgress)}%</span>
-                </div>
-              ) : (
-                <>
-                  <UploadCloud className="w-16 h-16 text-blue-500" />
-                  <span className="text-xl font-medium">
-                    کلیک بکە بۆ هەڵبژاردنی فیلم
-                  </span>
-                  <span className="text-gray-500 text-sm">
-                    پشتگیری هەموو جۆرە ڤیدیۆیەک دەکات (MP4, WebM, هتد...)
-                  </span>
-                </>
-              )}
-            </button>
-          </>
-        )}
+          ) : (
+            <>
+              <UploadCloud className="w-16 h-16 text-blue-500" />
+              <span className="text-xl font-medium">
+                کلیک بکە بۆ هەڵبژاردنی فیلم
+              </span>
+              <span className="text-gray-500 text-sm">
+                پشتگیری هەموو جۆرە ڤیدیۆیەک دەکات (MP4, WebM, هتد...)
+              </span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Videos List */}
