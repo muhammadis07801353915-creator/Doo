@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: videos
+    // Document ID: auto-generated
+    // Fields:
+    //   - filename: string (required)
+    //   - url: string (required)
+    //   - size: number (required)
+    //   - createdAt: number (required)
+    //   - uid: string (required)
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidVideo(data) {
+      return hasOnlyAllowedFields(['filename', 'url', 'size', 'createdAt', 'uid']) &&
+             data.filename is string && data.filename.size() > 0 && data.filename.size() < 500 &&
+             data.url is string && data.url.size() > 0 && data.url.size() < 2000 &&
+             data.size is number && data.size > 0 &&
+             data.createdAt is number &&
+             data.uid is string && data.uid.size() > 0;
+    }
+
+    match /videos/{videoId} {
+      // Anyone can read videos so the embed links work
+      allow read: if true;
+      
+      // Only authenticated users can upload videos
+      allow create: if isAuthenticated() && isValidVideo(request.resource.data) && uidUnchanged();
+      
+      // Only the owner can update or delete
+      allow update: if isDocOwner() && isValidVideo(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+  }
+}

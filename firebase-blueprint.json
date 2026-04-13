@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "Video": {
+      "title": "Video",
+      "description": "A video uploaded by a user",
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "description": "The original filename"
+        },
+        "url": {
+          "type": "string",
+          "description": "The Firebase Storage download URL"
+        },
+        "size": {
+          "type": "number",
+          "description": "The size of the video in bytes"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of upload"
+        },
+        "uid": {
+          "type": "string",
+          "description": "The ID of the user who uploaded the video"
+        }
+      },
+      "required": ["filename", "url", "size", "createdAt", "uid"]
+    }
+  },
+  "firestore": {
+    "/videos/{videoId}": {
+      "schema": {
+        "$ref": "#/entities/Video"
+      },
+      "description": "Collection of uploaded videos"
+    }
+  }
+}
